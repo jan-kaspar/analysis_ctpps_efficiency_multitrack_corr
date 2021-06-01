@@ -1,0 +1,23 @@
+#!/bin/sh
+
+export HOME="/afs/cern.ch/exp/totem/scratch/jkaspar"
+
+export X509_USER_PROXY="/afs/cern.ch/user/j/jkaspar/x509up_u2177"
+
+source "/cvmfs/cms.cern.ch/cmsset_default.sh"
+cd "$CMSSW_BASE/src"
+cmsenv
+
+voms-proxy-info
+
+# define directories
+job_dir="$JOB_DIR"
+
+# run the process
+cd "$job_dir"
+
+touch "submitted"
+
+cmsRun cfg.py && touch "success"
+
+touch "finished"

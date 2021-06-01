@@ -1,0 +1,10 @@
+*.root
+*.pdf
+*.log
+*.sub
+*.pyc
+.*
+
+!.gitignore
+
+make_ratios

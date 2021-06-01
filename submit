@@ -1,0 +1,142 @@
+#!/bin/bash
+
+#----------------------------------------------------------------------------------------------------
+
+# defaults
+run="n"
+submit="n"
+
+condor_file_sub="data/condor.sub"
+
+directories=()
+
+#----------------------------------------------------------------------------------------------------
+
+function PrintUsage()
+{
+	echo "USAGE: $0 <option> <dir> <dir> <option> ..."
+	echo "OPTIONS:"
+	echo "    -p <program>      select which program to run"
+	echo "    -run              excecute locally in background (default: $run)"
+	echo "    -submit           submit to LXBATCH (default: $submit)"
+	echo "    -queue <string>   select LXBATCH queue (default: $batch_queue)"
+}
+
+#----------------------------------------------------------------------------------------------------
+
+# process command line arguments
+while [ -n "$1" ]
+do
+	case "$1" in
+		"--help" | "-h")
+			PrintUsage
+			exit
+		;;
+
+		"-run")
+			run="y"
+		;;
+
+		"-submit")
+			submit="y"
+		;;
+
+		"-queue")
+			shift
+			batch_queue="$1"
+		;;
+
+		-*)
+			echo "ERROR: option '$1' not understood"
+			PrintUsage
+			exit 1
+		;;
+
+		*)
+			if [ ! -d "$1" ]
+			then
+				echo "ERROR: '$1' is not a directory."
+				PrintUsage
+				exit 3
+			fi
+
+			directories+=("$1")
+		;;
+	esac
+
+	shift
+done
+
+#----------------------------------------------------------------------------------------------------
+
+function ProcessOne()
+{
+	echo "* $dir"
+
+	# clean directory
+	rm -rf "$dir/submitted"
+	rm -rf "$dir/finished"
+	rm -rf "$dir/success"
+	rm -rf "$dir/output.root"
+	rm -rf "$dir/out"
+	rm -rf "$dir/err"
+	rm -rf "$dir/log"
+
+	# prepare job script
+	job_dir="`pwd -P`/$dir"
+	comm="`pwd -P`/$tag"
+
+	cat "template_job" | sed "\
+			s|\$CMSSW_BASE|$CMSSW_BASE|; \
+			s|\$JOB_DIR|$job_dir|; \
+		" > "$dir/job"
+
+	chmod u+x "$dir/job"
+
+	# execute if specified
+	if [ "$run" == "y" ]
+	then
+		"$dir/job" > "$dir/out" 2> "$dir/err" &
+	fi
+
+	# submit if specified
+	if [ "$submit" == "y" ]
+	then
+		(
+			echo ""
+			echo "dir=$dir"
+			echo "queue"
+		) >> "$condor_file_sub"
+	fi
+}
+
+#----------------------------------------------------------------------------------------------------
+
+if [ "$submit" == "y" ]
+then
+	(
+		base_dir_full="$(pwd)"
+		echo "executable = $base_dir_full/\$(dir)/job"
+		echo "arguments = \$(ClusterId) \$(ProcId) \\\"\$(dir)\\\""
+		echo "output = $base_dir_full/\$(dir)/out"
+		echo "error = $base_dir_full/\$(dir)/err"
+		echo "log = data/condor.log"
+
+		echo "+MaxRuntime = 18000"
+		#echo "+JobBatchName = \"$job_name\""
+		#echo "requirements = (OpSysAndVer =?= \"SLCern6\")"
+		echo "requirements = (OpSysAndVer =?= \"CentOS7\")"
+	) > "$condor_file_sub"
+fi
+
+# process all input
+for dir in ${directories[@]}
+do
+	ProcessOne
+done
+
+if [ "$submit" == "y" ]
+then
+	echo "In order to submit do:"
+	echo "    condor_submit \"$condor_file_sub"\"
+fi

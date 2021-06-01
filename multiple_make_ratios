@@ -1,0 +1,25 @@
+#!/bin/bash
+
+make "make_ratios" || exit 1
+
+function RunOne
+{
+	local period="$1"
+	local stream="$2"
+
+	echo ""
+	echo ""
+	echo ">> $period/$stream"
+	#./make_ratios "$period/config_base.py" "$period/$stream" $period/$stream/20*/*/block*
+
+	#rm -rf "data/$period/$stream/merged.root"
+	#hadd "data/$period/$stream/merged.root" data/$period/$stream/20*/*/block*/output.root
+
+	./make_ratios "data/$period/$stream/merged.root" "data/$period/$stream/ratios.root"
+}
+
+RunOne "2016_preTS2" "SingleMuon"
+RunOne "2016_postTS2" "SingleMuon"
+
+RunOne "2017_preTS2" "SingleMuon"
+RunOne "2017_postTS2" "SingleMuon"
